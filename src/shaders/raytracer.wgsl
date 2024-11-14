@@ -229,9 +229,15 @@ fn render(@builtin(global_invocation_id) id : vec3u)
 
     // Steps:
     // 1. Loop for each sample per pixel
-    // 2. Get ray
-    // 3. Call trace function
-    // 4. Average the color
+    for (var i = 0i; i < samples_per_pixel; i++){
+      // 2. Get ray
+      var point_pos = vec3f(uv - 0.5,1);
+      var r = ray(cam.origin, cam.origin - point_pos);
+      // 3. Call trace function
+      var ray_color = trace(r, &rng_state);
+      // 4. Average the color
+      color += ray_color;
+    }
 
     var color_out = vec4(linear_to_gamma(color), 1.0);
     var map_fb = mapfb(id.xy, rez);

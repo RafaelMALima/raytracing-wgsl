@@ -1,6 +1,14 @@
 fn hit_sphere(center: vec3f, radius: f32, r: ray, record: ptr<function, hit_record>, max: f32)
 {
-
+  var t: f32 = 0.;
+  var intersection_value = pow(center + radius, 2f);
+  for (var u = 0; u < 10; u++){
+    raymarch_pos = ray_at(r, t);
+    if (pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) < intersection_value){
+      record.hit_anything = true;
+      record.p = raymarch_pos;      
+    }
+  }
 }
 
 fn hit_quad(r: ray, Q: vec4f, u: vec4f, v: vec4f, record: ptr<function, hit_record>, max: f32)
