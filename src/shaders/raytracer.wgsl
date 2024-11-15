@@ -134,7 +134,7 @@ fn get_camera(lookfrom: vec3f, lookat: vec3f, vup: vec3f, vfov: f32, aspect_rati
   return camera;
 }
 
-fn envoriment_color(direction: vec3f, color1: vec3f, color2: vec3f) -> vec3f
+fn environment_color(direction: vec3f, color1: vec3f, color2: vec3f) -> vec3f
 {
   var unit_direction = normalize(direction);
   var t = 0.5 * (unit_direction.y + 1.0);
@@ -159,17 +159,19 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
   var trianglesCount = i32(uniforms[22]);
   var meshCount = i32(uniforms[27]);
 
-  for (var i = 0; i < spheresCount; i++){
-    var sphere = spheresb[i]; 
-    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
-    hit_sphere(sphere.transform.xyz, sphere.transform.w, r, &record, max);
-    if (record.hit_anything){
-      record.object_color = sphere.color;
-      return record;
-    }
-  }
   var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
   var closest = record;
+  for (var i = 0; i < spheresCount; i++){
+    var sphere = spheresb[i];
+    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
+    hit_sphere(sphere.transform.xyz, sphere.transform.w, r, &record, max);
+    //check if this record is closest hit if hit happens
+    if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
+      record.object_color = sphere.color;
+      record.object_material = sphere.material;
+      closest = record;
+    }
+  }
 
   return closest;
 }
@@ -205,17 +207,30 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
   var backgroundcolor2 = int_to_rgb(i32(uniforms[12]));
   var behaviour = material_behaviour(true, vec3f(0.0));
 
+  var accumulated_color = color;
+  var hitrec = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
   for (var j = 0; j < maxbounces; j = j + 1)
   {
-    var hitrec = check_ray_collision(r_, 100.);
+    hitrec = check_ray_collision(r_, 100.);
     if (hitrec.hit_anything){
-      backgroundcolor1.r = 1.0;
-      backgroundcolor1.g = 0.0;
-      backgroundcolor1.b = 0.0;
+      accumulated_color *= hitrec.object_color.xyz;
+      //behaviour = hitrec.object_material;
+      if (behaviour.scatter){
+        r_.origin = hitrec.p;
+        //get normalized direction outwards
+        r_.direction = rng_next_vec3_in_unit_sphere(rng_state);
+        while (dot(r_.direction,hitrec.normal) < 0){
+          r_.direction = rng_next_vec3_in_unit_sphere(rng_state);
+        }
+      }
+    }
+    else{
+      accumulated_color *= environment_color(r_.direction, backgroundcolor1, backgroundcolor2);
+      break;
     }
   }
 
-  return backgroundcolor1;
+  return accumulated_color;
 }
 
 @compute @workgroup_size(THREAD_COUNT, THREAD_COUNT, 1)
@@ -249,9 +264,10 @@ fn render(@builtin(global_invocation_id) id : vec3u)
       var r = get_ray(cam, uv, &rng_state);
       // 3. Call trace function
       var ray_color = trace(r, &rng_state);
-      // 4. Average the color
       color += ray_color;
     }
+    // 4. Average the color
+    color = color / f32(samples_per_pixel);
 
     var color_out = vec4(linear_to_gamma(color), 1.0);
     var map_fb = mapfb(id.xy, rez);
@@ -259,7 +275,11 @@ fn render(@builtin(global_invocation_id) id : vec3u)
     // 5. Accumulate the color
     var should_accumulate = uniforms[3];
 
+    var previous_color = rtfb[map_fb];
+
+    var accumulated_color =  previous_color * should_accumulate + color_out;
+
     // Set the color to the framebuffer
-    rtfb[map_fb] = color_out;
-    fb[map_fb] = color_out;
+    rtfb[map_fb] = accumulated_color;
+    fb[map_fb] = accumulated_color / f32(time);
 }

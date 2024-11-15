@@ -12,22 +12,34 @@ fn hit_sphere(center: vec3f, radius: f32, r: ray, record: ptr<function, hit_reco
     record.hit_anything = false;
   }
   if (delta > 0){
+    var sqrt_delta = sqrt(delta);
+    var t1: f32 = (-b - sqrt_delta) / (2.0 * a);
+    var t2: f32 = (-b + sqrt_delta) / (2.0 * a);
+
+    // Initialize t to maximum value
+    var t_min = 0.001; // Small epsilon to avoid self-intersection
+    var t = max;       // Use the 'max' parameter provided
+
+    // Find the nearest positive t
+    if (t1 > t_min && t1 < t) {
+        t = t1;
+    }
+    if (t2 > t_min && t2 < t) {
+        t = t2;
+    }
+
+    // If t remains unchanged, no valid intersection was found
+    if (t == max) {
+        record.hit_anything = false;
+        return;
+    }
+
+    // Record the hit information
     record.hit_anything = true;
-    var t1 : f32 = (-b + sqrt(delta)) / 2*a;
-    var t2 : f32 = (-b - sqrt(delta)) / 2*a;
-    var p1 : vec3f = p0 + t1 * d;
-    var p2 : vec3f = p0 + t2 * d;
-    record.p = p1;
+    record.t = t;
+    record.p = p0 + t * d;
+    record.normal = normalize(record.p - center);
   }
-  //var t: f32 = 0.;
-  //var intersection_value = pow(center + radius, 2f);
-  //for (var u = 0; u < 10; u++){
-  //  raymarch_pos = ray_at(r, t);
-  //  if (pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) < intersection_value){
-  //    record.hit_anything = true;
-  //    record.p = raymarch_pos;      
-  //  }
-  //}
 }
 
 fn hit_quad(r: ray, Q: vec4f, u: vec4f, v: vec4f, record: ptr<function, hit_record>, max: f32)
