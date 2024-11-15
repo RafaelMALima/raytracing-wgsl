@@ -159,6 +159,15 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
   var trianglesCount = i32(uniforms[22]);
   var meshCount = i32(uniforms[27]);
 
+  for (var i = 0; i < spheresCount; i++){
+    var sphere = spheresb[i]; 
+    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
+    hit_sphere(sphere.transform.xyz, sphere.transform.w, r, &record, max);
+    if (record.hit_anything){
+      record.object_color = sphere.color;
+      return record;
+    }
+  }
   var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
   var closest = record;
 
@@ -198,10 +207,15 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
 
   for (var j = 0; j < maxbounces; j = j + 1)
   {
-
+    var hitrec = check_ray_collision(r_, 100.);
+    if (hitrec.hit_anything){
+      backgroundcolor1.r = 1.0;
+      backgroundcolor1.g = 0.0;
+      backgroundcolor1.b = 0.0;
+    }
   }
 
-  return light;
+  return backgroundcolor1;
 }
 
 @compute @workgroup_size(THREAD_COUNT, THREAD_COUNT, 1)
@@ -232,7 +246,7 @@ fn render(@builtin(global_invocation_id) id : vec3u)
     for (var i = 0i; i < samples_per_pixel; i++){
       // 2. Get ray
       var point_pos = vec3f(uv - 0.5,1);
-      var r = ray(cam.origin, cam.origin - point_pos);
+      var r = get_ray(cam, uv, &rng_state);
       // 3. Call trace function
       var ray_color = trace(r, &rng_state);
       // 4. Average the color

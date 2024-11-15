@@ -1,14 +1,33 @@
 fn hit_sphere(center: vec3f, radius: f32, r: ray, record: ptr<function, hit_record>, max: f32)
 {
   var t: f32 = 0.;
-  var intersection_value = pow(center + radius, 2f);
-  for (var u = 0; u < 10; u++){
-    raymarch_pos = ray_at(r, t);
-    if (pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) < intersection_value){
-      record.hit_anything = true;
-      record.p = raymarch_pos;      
-    }
+  var p0 : vec3f = r.origin;
+  var d : vec3f = r.direction;
+  //calcula o baskhara para a interseccao
+  var a = dot(d,d);
+  var b = 2*dot(d,p0-center);
+  var c = dot(p0 - center,p0 - center) - radius*radius;
+  var delta  = b*b - 4*a*c;
+  if (delta > 0){
+    record.hit_anything = false;
   }
+  if (delta > 0){
+    record.hit_anything = true;
+    var t1 : f32 = (-b + sqrt(delta)) / 2*a;
+    var t2 : f32 = (-b - sqrt(delta)) / 2*a;
+    var p1 : vec3f = p0 + t1 * d;
+    var p2 : vec3f = p0 + t2 * d;
+    record.p = p1;
+  }
+  //var t: f32 = 0.;
+  //var intersection_value = pow(center + radius, 2f);
+  //for (var u = 0; u < 10; u++){
+  //  raymarch_pos = ray_at(r, t);
+  //  if (pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) + pow(raymarch_pos.x,2) < intersection_value){
+  //    record.hit_anything = true;
+  //    record.p = raymarch_pos;      
+  //  }
+  //}
 }
 
 fn hit_quad(r: ray, Q: vec4f, u: vec4f, v: vec4f, record: ptr<function, hit_record>, max: f32)
