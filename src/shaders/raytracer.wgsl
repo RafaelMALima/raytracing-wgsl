@@ -172,6 +172,17 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
       closest = record;
     }
   }
+  for (var i = 0; i < boxesCount; i++){
+    var box = boxesb[i];
+    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
+    hit_box(r, box.center.xyz, box.radius.xyz, &record, max);
+    //check if this record is closest hit if hit happens
+    if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
+      record.object_color = box.color;
+      record.object_material = box.material;
+      closest = record;
+    }
+  }
 
   return closest;
 }
@@ -220,12 +231,16 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
     var smoothn = hitrec.object_material.x;
     var absorp = hitrec.object_material.y;
     var spec = hitrec.object_material.z;
-    var light = hitrec.object_material.w;
+    var luce = hitrec.object_material.w;
 
+    if (luce > 0){
+      light = accumulated_color * luce*hitrec.object_color.xyz;
+      break;
+    }
     if (smoothn > 0){
       behaviour = metal(hitrec.normal, r_.direction, (1-spec*(1-absorp)), rng_next_vec3_in_unit_sphere(rng_state));
       var new_color = (1-absorp)*hitrec.object_color.xyz;
-      accumulated_color *= new_color + spec*(vec3f(1) - new_color);
+      accumulated_color *= new_color + smoothn*spec*(vec3f(1) - new_color);
     }
     else if (smoothn < 0){
       //behaviour = dielectric(hitrec.normal, r_.direction, hitrec.object_material.y, rng_next_vec3_in_unit_sphere(rng_state), )
