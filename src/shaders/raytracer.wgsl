@@ -178,12 +178,15 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
 
 fn lambertian(normal : vec3f, absorption: f32, random_sphere: vec3f, rng_state: ptr<function, u32>) -> material_behaviour
 {
-  return material_behaviour(true, vec3f(0.0));
+  var dir = random_sphere + normal;
+  return material_behaviour(true, normalize(dir));
 }
 
 fn metal(normal : vec3f, direction: vec3f, fuzz: f32, random_sphere: vec3f) -> material_behaviour
 {
-  return material_behaviour(false, vec3f(0.0));
+  var reflect = direction - 2* dot(normal,direction)*normal;
+  var reflect_direction = reflect+fuzz*random_sphere;
+  return material_behaviour(true, normalize(reflect_direction));
 }
 
 fn dielectric(normal : vec3f, r_direction: vec3f, refraction_index: f32, frontface: bool, random_sphere: vec3f, fuzz: f32, rng_state: ptr<function, u32>) -> material_behaviour
@@ -212,25 +215,38 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
   for (var j = 0; j < maxbounces; j = j + 1)
   {
     hitrec = check_ray_collision(r_, 100.);
-    if (hitrec.hit_anything){
+    if (!hitrec.hit_anything){ accumulated_color *= environment_color(r_.direction, backgroundcolor1, backgroundcolor2); break; }
+    //determine bounce behaviour
+    var smoothn = hitrec.object_material.x;
+    var absorp = hitrec.object_material.y;
+    var spec = hitrec.object_material.z;
+    var light = hitrec.object_material.w;
+
+    if (smoothn > 0){
+      behaviour = metal(hitrec.normal, r_.direction, (1-spec), rng_next_vec3_in_unit_sphere(rng_state));
+      var new_color = (1-absorp)*hitrec.object_color.xyz;
+      accumulated_color *= new_color + spec*(vec3f(1) - new_color);
+    }
+    else if (smoothn < 0){
+      //behaviour = dielectric(hitrec.normal, r_.direction, hitrec.object_material.y, rng_next_vec3_in_unit_sphere(rng_state), )
+      behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
       accumulated_color *= hitrec.object_color.xyz;
-      //behaviour = hitrec.object_material;
-      if (behaviour.scatter){
-        r_.origin = hitrec.p;
-        //get normalized direction outwards
-        r_.direction = rng_next_vec3_in_unit_sphere(rng_state);
-        while (dot(r_.direction,hitrec.normal) < 0){
-          r_.direction = rng_next_vec3_in_unit_sphere(rng_state);
-        }
-      }
+    }
+    else {
+      behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
+      accumulated_color *= hitrec.object_color.xyz;
+    }
+    if (behaviour.scatter){
+      //accumulated_color *= hitrec.object_color.xyz;
+      r_.origin = hitrec.p;
+      r_.direction = behaviour.direction;
     }
     else{
-      accumulated_color *= environment_color(r_.direction, backgroundcolor1, backgroundcolor2);
+      //accumulated_color *= hitrec.object_color.xyz;
       break;
     }
   }
-
-  return accumulated_color;
+  return light + accumulated_color;
 }
 
 @compute @workgroup_size(THREAD_COUNT, THREAD_COUNT, 1)
@@ -276,10 +292,10 @@ fn render(@builtin(global_invocation_id) id : vec3u)
     var should_accumulate = uniforms[3];
 
     var previous_color = rtfb[map_fb];
-
     var accumulated_color =  previous_color * should_accumulate + color_out;
+
 
     // Set the color to the framebuffer
     rtfb[map_fb] = accumulated_color;
-    fb[map_fb] = accumulated_color / f32(time);
+    fb[map_fb] = accumulated_color / accumulated_color.w;
 }
