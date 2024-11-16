@@ -223,7 +223,7 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
     var light = hitrec.object_material.w;
 
     if (smoothn > 0){
-      behaviour = metal(hitrec.normal, r_.direction, (1-spec), rng_next_vec3_in_unit_sphere(rng_state));
+      behaviour = metal(hitrec.normal, r_.direction, (1-spec*(1-absorp)), rng_next_vec3_in_unit_sphere(rng_state));
       var new_color = (1-absorp)*hitrec.object_color.xyz;
       accumulated_color *= new_color + spec*(vec3f(1) - new_color);
     }
