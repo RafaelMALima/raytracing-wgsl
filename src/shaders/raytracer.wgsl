@@ -196,13 +196,18 @@ fn lambertian(normal : vec3f, absorption: f32, random_sphere: vec3f, rng_state: 
 fn metal(normal : vec3f, direction: vec3f, fuzz: f32, random_sphere: vec3f) -> material_behaviour
 {
   var reflect = direction - 2* dot(normal,direction)*normal;
-  var reflect_direction = reflect+fuzz*random_sphere;
+  var lamb_dir = random_sphere + normal;
+  var reflect_direction = normalize(reflect)+fuzz*lamb_dir;
   return material_behaviour(true, normalize(reflect_direction));
 }
 
 fn dielectric(normal : vec3f, r_direction: vec3f, refraction_index: f32, frontface: bool, random_sphere: vec3f, fuzz: f32, rng_state: ptr<function, u32>) -> material_behaviour
-{  
-  return material_behaviour(false, vec3f(0.0));
+{
+  var cos_theta = dot(-r_direction, normal);
+  var r_t = refraction_index * (r_direction + cos_theta*normal); //componente perpendicular à normal do raio
+  var r_p =  -sqrt(1-abs(r_t)*abs(r_t))*normal;                  //componente paralela à normal do raio
+  var r_linha =  r_t + r_p;
+  return material_behaviour(false, r_linha);
 }
 
 fn emmisive(color: vec3f, light: f32) -> material_behaviour
@@ -223,6 +228,9 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
 
   var accumulated_color = color;
   var hitrec = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
+  var light_intensity = 1.;
+  var spec_effect = 1.;
+
   for (var j = 0; j < maxbounces; j = j + 1)
   {
     hitrec = check_ray_collision(r_, 100.);
@@ -233,23 +241,33 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
     var spec = hitrec.object_material.z;
     var luce = hitrec.object_material.w;
 
+    light_intensity *= (1-absorp);
+
     if (luce > 0){
       light = accumulated_color * luce*hitrec.object_color.xyz;
       break;
     }
     if (smoothn > 0){
-      behaviour = metal(hitrec.normal, r_.direction, (1-spec*(1-absorp)), rng_next_vec3_in_unit_sphere(rng_state));
-      var new_color = (1-absorp)*hitrec.object_color.xyz;
-      accumulated_color *= new_color + smoothn*spec*(vec3f(1) - new_color);
+      //deal with specular
+      if (rng_next_float(rng_state) > spec){
+        behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
+        accumulated_color *= hitrec.object_color.xyz;
+      } else  {
+        behaviour = metal(hitrec.normal, r_.direction, absorp, rng_next_vec3_in_unit_sphere(rng_state));
+        var new_color = hitrec.object_color.xyz;
+        accumulated_color *= new_color + smoothn*spec*(vec3f(1) - new_color);
+      }
     }
     else if (smoothn < 0){
       //behaviour = dielectric(hitrec.normal, r_.direction, hitrec.object_material.y, rng_next_vec3_in_unit_sphere(rng_state), )
-      behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
-      accumulated_color *= hitrec.object_color.xyz;
+      //behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
+      var refraction_index = 1.;
+      behaviour = dielectric(hitrec.normal, r_.direction, refraction_index, true, rng_next_vec3_in_unit_sphere(rng_state), 1-smoothn*spec*(1-absorp), rng_state);
+      accumulated_color *= light_intensity*hitrec.object_color.xyz;
     }
     else {
       behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
-      accumulated_color *= hitrec.object_color.xyz;
+      accumulated_color *= hitrec.object_color.xyz * hitrec.object_color.w;
     }
     if (behaviour.scatter){
       //accumulated_color *= hitrec.object_color.xyz;
@@ -285,7 +303,7 @@ fn render(@builtin(global_invocation_id) id : vec3u)
     var cam = get_camera(lookfrom, lookat, vec3(0.0, 1.0, 0.0), uniforms[10], 1.0, uniforms[6], uniforms[5]);
     var samples_per_pixel = i32(uniforms[4]);
 
-    var color = vec3(rng_next_float(&rng_state), rng_next_float(&rng_state), rng_next_float(&rng_state));
+    var color = vec3f(0f);
 
     // Steps:
     // 1. Loop for each sample per pixel
