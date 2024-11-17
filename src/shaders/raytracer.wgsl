@@ -203,11 +203,13 @@ fn metal(normal : vec3f, direction: vec3f, fuzz: f32, random_sphere: vec3f) -> m
 
 fn dielectric(normal : vec3f, r_direction: vec3f, refraction_index: f32, frontface: bool, random_sphere: vec3f, fuzz: f32, rng_state: ptr<function, u32>) -> material_behaviour
 {
+  var real_ri = refraction_index;
+  if (!frontface) { real_ri = 1./refraction_index; }
   var cos_theta = dot(-r_direction, normal);
-  var r_t = refraction_index * (r_direction + cos_theta*normal); //componente perpendicular à normal do raio
+  var r_t = real_ri * (r_direction + cos_theta*normal); //componente perpendicular à normal do raio
   var r_p =  -sqrt(1-abs(r_t)*abs(r_t))*normal;                  //componente paralela à normal do raio
   var r_linha =  r_t + r_p;
-  return material_behaviour(false, r_linha);
+  return material_behaviour(true, r_linha);
 }
 
 fn emmisive(color: vec3f, light: f32) -> material_behaviour
@@ -253,17 +255,18 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
         behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
         accumulated_color *= hitrec.object_color.xyz;
       } else  {
-        behaviour = metal(hitrec.normal, r_.direction, absorp, rng_next_vec3_in_unit_sphere(rng_state));
+        behaviour = metal(hitrec.normal, r_.direction, 1-smoothn*(1-absorp), rng_next_vec3_in_unit_sphere(rng_state));
         var new_color = hitrec.object_color.xyz;
         accumulated_color *= new_color + smoothn*spec*(vec3f(1) - new_color);
       }
     }
     else if (smoothn < 0){
-      //behaviour = dielectric(hitrec.normal, r_.direction, hitrec.object_material.y, rng_next_vec3_in_unit_sphere(rng_state), )
-      //behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
       var refraction_index = 1.;
-      behaviour = dielectric(hitrec.normal, r_.direction, refraction_index, true, rng_next_vec3_in_unit_sphere(rng_state), 1-smoothn*spec*(1-absorp), rng_state);
-      accumulated_color *= light_intensity*hitrec.object_color.xyz;
+      //behaviour = dielectric(hitrec.normal, r_.direction, refraction_index, hitrec.frontface, rng_next_vec3_in_unit_sphere(rng_state), 1-smoothn*spec*(1-absorp), rng_state);
+      //accumulated_color *= light_intensity*hitrec.object_color.xyz;
+      behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
+      //accumulated_color *= hitrec.object_color.xyz * hitrec.object_color.w;
+
     }
     else {
       behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);

@@ -23,9 +23,11 @@ fn hit_sphere(center: vec3f, radius: f32, r: ray, record: ptr<function, hit_reco
     // Find the nearest positive t
     if (t1 > t_min && t1 < t) {
         t = t1;
+        record.frontface = true;
     }
     if (t2 > t_min && t2 < t) {
         t = t2;
+        record.frontface = false;
     }
 
     // If t remains unchanged, no valid intersection was found
