@@ -214,38 +214,27 @@ fn schlick_aproximation(refraction_index: f32, cos_theta: f32) -> f32{
   return r_theta;
 }
 
-fn dielectric(normal : vec3f, r_direction: vec3f, refraction_index: f32, frontface: bool, random_sphere: vec3f, fuzz: f32, rng_state: ptr<function, u32>) -> material_behaviour
-{    // Determine the refractive index ratio
-    let ri = select(refraction_index, 1.0 / refraction_index, frontface);
+fn dielectric(normal : vec3f, r_direction: vec3f, refraction_index: f32, frontface: bool, random_sphere: vec3f, fuzz: f32, rng_state: ptr<function, u32>) -> material_behaviour{    
+  let unit_direction = normalize(r_direction);
+  let cos_theta = min(dot(-unit_direction, normal), 1.0);
+  let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
 
-    // Normalize the incoming ray direction
-    let unit_direction = normalize(r_direction);
 
-    // Calculate cosine and sine of the angle of incidence
-    let cos_theta = min(dot(-unit_direction, normal), 1.0);
-    let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+  var refraction_ratio = 0.;
+  if frontface { refraction_ratio = 1.0 / refraction_index; } else { refraction_ratio = refraction_index; };
 
-    // Check for total internal reflection
-    let cannot_refract = ri * sin_theta > 1.0;
+  var r_theta = schlick_aproximation(refraction_ratio, refraction_ratio);
+  var direction: vec3f;
+  if (refraction_ratio * sin_theta > 1.0 || r_theta > rng_next_float(rng_state)) {
+    // Total internal reflection
+    direction = reflect(unit_direction, normal);
+  } else {
+      // Refraction
+      direction = refract(unit_direction, normal, refraction_ratio);
+  }
 
-    // Compute Schlick's reflectance approximation
-    let r0 = (1.0 - ri) / (1.0 + ri);
-    let r0_squared = r0 * r0;
-    let reflect_prob = r0_squared + (1.0 - r0_squared) * pow(1.0 - cos_theta, 5.0);
-
-    // Decide whether to reflect or refract
-    var direction: vec3f;
-    if (cannot_refract || reflect_prob > rng_next_float(rng_state)) {
-        // Reflect the ray
-        direction = reflect(unit_direction, normal);
-    } else {
-        // Refract the ray
-        let r_perp = ri * (unit_direction + cos_theta * normal);
-        let r_parallel = -sqrt(abs(1.0 - dot(r_perp, r_perp))) * normal;
-        direction = r_perp + r_parallel;
-    }
-
-    return material_behaviour(true, normalize(direction));
+  // Apply fuzziness if needed
+  return material_behaviour(true, direction + fuzz * random_sphere);
 }
 
 
@@ -267,7 +256,6 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
 
   var accumulated_color = color;
   var hitrec = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
-  var light_intensity = 1.;
   var spec_effect = 1.;
 
   for (var j = 0; j < maxbounces; j = j + 1)
@@ -279,8 +267,6 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
     var absorp = hitrec.object_material.y;
     var spec = hitrec.object_material.z;
     var luce = hitrec.object_material.w;
-
-    light_intensity *= (1-absorp);
 
     if (luce > 0){
       light = accumulated_color * luce*hitrec.object_color.xyz;
@@ -299,11 +285,11 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
     }
     else if (smoothn < 0){
       behaviour = dielectric(hitrec.normal, r_.direction, spec, hitrec.frontface, rng_next_vec3_in_unit_sphere(rng_state), absorp, rng_state);
-      //hitrec.p -= hitrec.normal*0.01;
+      //behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
     }
     else {
       behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
-      accumulated_color *= hitrec.object_color.xyz * hitrec.object_color.w;
+      accumulated_color *= hitrec.object_color.xyz;
     }
     if (behaviour.scatter){
       //accumulated_color *= hitrec.object_color.xyz;

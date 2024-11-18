@@ -17,30 +17,33 @@ fn hit_sphere(center: vec3f, radius: f32, r: ray, record: ptr<function, hit_reco
     var t2: f32 = (-b + sqrt_delta) / (2.0 * a);
 
     // Initialize t to maximum value
-    var t_min = 0.001; // Small epsilon to avoid self-intersection
+    var t_min = 0.01;  // Small epsilon to avoid self-intersection
     var t = max;       // Use the 'max' parameter provided
 
+    var invert_normal = 1.;
     // Find the nearest positive t
     if (t1 > t_min && t1 < t) {
-        t = t1;
-        record.frontface = true;
+      t = t1;
+      record.frontface = true;
     }
     if (t2 > t_min && t2 < t) {
-        t = t2;
-        record.frontface = false;
+      t = t2;
+      record.frontface = false;
+      invert_normal = -1.;
     }
 
     // If t remains unchanged, no valid intersection was found
     if (t == max) {
-        record.hit_anything = false;
-        return;
+      record.hit_anything = false;
+      return;
     }
 
     // Record the hit information
     record.hit_anything = true;
     record.t = t;
     record.p = p0 + t * d;
-    record.normal = normalize(record.p - center);
+
+    record.normal = normalize(record.p - center)*invert_normal;
   }
 }
 
