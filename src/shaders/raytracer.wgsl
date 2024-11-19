@@ -183,6 +183,16 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
       closest = record;
     }
   }
+  for (var i = 0; i < quadsCount; i++){
+    var quad = quadsb[i];
+    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
+    hit_quad(r, quad.Q, quad.u, quad.v, &record, max);
+    if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
+      record.object_color = quad.color;
+      record.object_material = quad.material;
+      closest = record;
+    }
+  }
 
   return closest;
 }
@@ -261,7 +271,7 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
   for (var j = 0; j < maxbounces; j = j + 1)
   {
     hitrec = check_ray_collision(r_, 100.);
-    if (!hitrec.hit_anything){ accumulated_color *= environment_color(r_.direction, backgroundcolor1, backgroundcolor2); break; }
+    if (!hitrec.hit_anything){ light = accumulated_color *environment_color(r_.direction, backgroundcolor1, backgroundcolor2); break; }
     //determine bounce behaviour
     var smoothn = hitrec.object_material.x;
     var absorp = hitrec.object_material.y;
@@ -276,11 +286,11 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
       //deal with specular
       if (rng_next_float(rng_state) > spec){
         behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
-        accumulated_color *= hitrec.object_color.xyz;
+        accumulated_color *= hitrec.object_color.xyz*(1-absorp);
       } else  {
         behaviour = metal(hitrec.normal, r_.direction, 1-smoothn*(1-absorp), rng_next_vec3_in_unit_sphere(rng_state));
-        var new_color = hitrec.object_color.xyz;
-        accumulated_color *= new_color + smoothn*spec*(vec3f(1) - new_color);
+        //var new_color = hitrec.object_color.xyz;
+        //accumulated_color *= new_color + smoothn*spec*(vec3f(1) - new_color);
       }
     }
     else if (smoothn < 0){
@@ -289,7 +299,7 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
     }
     else {
       behaviour = lambertian(hitrec.normal, absorp, rng_next_vec3_in_unit_sphere(rng_state), rng_state);
-      accumulated_color *= hitrec.object_color.xyz;
+      accumulated_color *= hitrec.object_color.xyz*(1-absorp);
     }
     if (behaviour.scatter){
       //accumulated_color *= hitrec.object_color.xyz;
@@ -301,7 +311,7 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
       break;
     }
   }
-  return light + accumulated_color;
+  return light;
 }
 
 @compute @workgroup_size(THREAD_COUNT, THREAD_COUNT, 1)
