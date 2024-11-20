@@ -187,12 +187,27 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
   for (var i = 0; i < boxesCount; i++){
     var box = boxesb[i];
     var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
-    hit_box(r, box.center.xyz, box.radius.xyz, &record, max);
-    //check if this record is closest hit if hit happens
-    if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
-      record.object_color = box.color;
-      record.object_material = box.material;
-      closest = record;
+    //ja que nao tem mais espaco para mais um buffer, gambiarra aqui para a primitiva do plano funcionar
+
+    //se tem a flag, eh um plano
+    if (box.center.w > 1){
+      var plane = box;
+      hit_plane(r, plane.center.xyz, plane.radius.x, &record, max);
+      if (record.hit_anything){
+        record.object_color = plane.color;
+        record.object_material = plane.material;
+        closest = record;
+      }
+    }
+    //se nao tem a flag, eh uma box normal
+    else{
+      hit_box(r, box.center.xyz, box.radius.xyz, &record, max);
+      //check if this record is closest hit if hit happens
+      if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
+        record.object_color = box.color;
+        record.object_material = box.material;
+        closest = record;
+      }
     }
   }
   for (var i = 0; i < quadsCount; i++){
@@ -219,18 +234,6 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
 
     }
   }
-  /*
-  for (var i = 0; i < planeCount; i++){
-    var plane = planesb[i];
-    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
-    hit_plane(r, plane.normal.xyz, plane.offset, &record, max);
-    if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
-      record.object_color = plane.color;
-      record.object_material = plane.material;
-    }
-  }
-  */
-
 
   return closest;
 }

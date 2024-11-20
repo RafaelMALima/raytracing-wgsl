@@ -157,8 +157,9 @@ fn hit_box(r: ray, center: vec3f, rad: vec3f, record: ptr<function, hit_record>,
   return;
 }
 
-fn hit_plane(r: ray, normal: vec3f, offset: f32, record: ptr<function, hit_record>, max: f32)
+fn hit_plane(r: ray, n: vec3f, offset: f32, record: ptr<function, hit_record>, max: f32)
 {
+  var normal = normalize(n);
   if abs(dot(normal, r.origin)) < 0.001 {
     record.hit_anything=false;
     return;

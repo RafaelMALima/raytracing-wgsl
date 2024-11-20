@@ -4,8 +4,9 @@ class Sphere
     transform = [0.0, 0.0, 0.0, 0.0];
     color = [0.0, 0.0, 0.0, 0.0];
     material = [0.0, 0.0, 0.0, 0.0];
+    //is_plane = 0.0;
 
-    constructor(center, color, radius, material)
+    constructor(center, color, radius, material, is_plane = 0.0)
     {
         this.transform = [center[0], center[1], center[2], radius];
         this.color = [color[0], color[1], color[2], 1.0];
@@ -41,9 +42,9 @@ class Box
     color = [0.0, 0.0, 0.0, 0.0];
     material = [0.0, 0.0, 0.0, 0.0];
 
-    constructor(center, color, rotation, radius, material)
+    constructor(center, color, rotation, radius, material, is_plane = 0)
     {
-        this.center = [center[0], center[1], center[2], 0.0];
+        this.center = [center[0], center[1], center[2], is_plane];
         this.radius = [radius[0], radius[1], radius[2], 0.0];
         this.rotation = [rotation[0], rotation[1], rotation[2], 0.0];
         this.color = [color[0], color[1], color[2], 1.0];
@@ -96,23 +97,6 @@ class Mesh
     {
         this.min = [min[0], min[1], min[2], 0.0];
         this.max = [max[0], max[1], max[2], 0.0];
-    }
-}
-
-class Plane {
-    name = "Plane";
-    transform = [0.0, 0.0, 0.0, 0.0];
-    normal = [0.0, 0.0, 0.0, 0.0];
-    color = [0.0, 0.0, 0.0, 0.0];
-    material = [0.0, 0.0, 0.0, 0.0];
-    offset = 0.0;
-    constructor(transform, normal, color, material)
-    {
-        this.offset = offset;
-        this.normal = [normal[0], normal[1], normal[2], 0.0];
-        this.color = [color[0], color[1], color[2], 1.0];
-        this.material = material;
-        this.end = end;
     }
 }
 
