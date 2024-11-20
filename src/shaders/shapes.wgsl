@@ -156,3 +156,21 @@ fn hit_box(r: ray, center: vec3f, rad: vec3f, record: ptr<function, hit_record>,
 
   return;
 }
+
+fn hit_plane(r: ray, normal: vec3f, offset: f32, record: ptr<function, hit_record>, max: f32)
+{
+  if abs(dot(normal, r.origin)) < 0.001 {
+    record.hit_anything=false;
+    return;
+  }
+  var t = -(dot(normal, r.origin) + offset) / dot(normal, r.direction);
+    if (t < RAY_TMIN || t > max)
+  {
+    record.hit_anything=false;
+    return;
+  }    
+  record.t = t;
+  record.p = r.origin + t * r.direction;
+  record.normal = normal;
+  record.hit_anything = true;
+}

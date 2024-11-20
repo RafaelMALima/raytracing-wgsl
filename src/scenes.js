@@ -473,37 +473,36 @@ async function Rotation()
 	};
 }
 
-async function Everything()
+async function Plane() 
 {
-    let offset = [0, -1, -2];
-    let spheres = [groundDefault];
-    spheres = spheres.concat(getSpheresRandom(3, offset));
+	let spheres = [
+		new Sphere([0, -1001, 0], [0.5, 0.5, 0.5], 1000, [0.9, 0, 0.6, 0]), 
+		new Sphere([0, 8, -10], [0.8, 0.1, 0.2], 1.3, [0, 0.001, 0, 0]), 
+	];
 
-    let boxes = [new Box([-1.0, 0.0, -2.6], [0.1, 0.1, 0.1], [0.0, -0.6, 0.0], [0.3, 0.9, 0.3], [1.0, 0.0, 0.9, 0.0]),
-                new Box([1.0, 0.00, -2.6], [0.1, 0.2, 0.5], [0.0, -0.6, 0.0], [0.3, 0.9, 0.3], [-1.0, 0.0, 0.0, 0.0]),
-                new Box([0.0, 0.00, -2.6], [0.5, 0.0, 0.5], [0.6, -0.6, 0.1], [0.3, 0.3, 0.3], [0.0, 0.0, 0.0, 0.0]),
-                new Box([0.0, 1.0, -2.6], [0.3, 0.3, 0.3], [-0.6, -0.2, -0.1], [0.3, 0.3, 0.3], [1.0, 0.0, 0.9, 0.0]),
-    ];
+	let quads = [
+	];
 
-    let { verticesMesh, trianglesMesh, triangles } = await loadMesh('./media/suzanne.obj');
-    let meshes = [new Mesh([0, -0.6, -2], [.25, .25, .25], [0.5, 0.3, 0.2], [0.6, 0.3, 0.7, 1.0], [1.0, 0.0, 0.7, 0.0], 0, 0, triangles.length)];
-    let { min, max } = getObjBoundingBox(verticesMesh);
-    meshes[0].setBoundingBox(min, max);
+	let boxes = [
+		new Box([0, 0, -10, 0], [1, 1, 1], [0, 0, 0, 0], [0.5, 10, 0.5, 0], [0, 0, 0, 0]), 
+		new Box([2, 0, -10, 0], [1, 1, 1], [0, 1, 1, 0], [0.5, 10, 0.5, 0], [0, 0, 0, 0]), 
+	];
 
-    return {
-        spheres: spheres, 
-        quads: [], 
-        boxes: boxes, 
-        triangles: triangles, 
-        meshes: meshes,
-        backgroundColor1: [0.0, 0.5, 1.0], 
-        backgroundColor2: [1.0, 1.0, 1.0], 
-        focusDistance: 3.0, 
-        focusAngle: 0.0,
-        sunIntensity: 1.0,
-        samplesPerPixel: 1.0,
-        maxBounces: 10.0
-    };
+	return {
+		spheres : spheres,
+		quads : quads,
+		boxes : boxes,
+		triangles: [],
+		meshes: [],
+		backgroundColor1 : [1, 1, 1],
+		backgroundColor2 : [0.5, 0.7, 1],
+		focusDistance: 5,
+		focusAngle: 0,
+		sunIntensity: 1,
+		samplesPerPixel: 1,
+		maxBounces: 10
+	};
 }
+
 
 export { getAvailableScene };

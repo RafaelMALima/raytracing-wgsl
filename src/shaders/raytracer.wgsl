@@ -29,6 +29,9 @@ const FRAC_2_PI = 1.5707964f;
 @group(2) @binding(4)
   var<storage, read_write> meshb : array<mesh>;
 
+//@group(2) @binding(5)
+//  var<storage, read_write> planesb : array<plane>;
+
 struct ray {
   origin : vec3f,
   direction : vec3f,
@@ -74,6 +77,14 @@ struct mesh {
   start : f32,
   end : f32,
 };
+
+struct plane {
+  normal : vec4f,
+  color : vec4f,
+  material : vec4f,
+  offset : f32,
+};
+
 
 struct material_behaviour {
   scatter : bool,
@@ -158,6 +169,7 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
   var boxesCount = i32(uniforms[21]);
   var trianglesCount = i32(uniforms[22]);
   var meshCount = i32(uniforms[27]);
+  //var planeCount = i32(uniforms[28]);
 
   var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
   var closest = record;
@@ -193,6 +205,32 @@ fn check_ray_collision(r: ray, max: f32) -> hit_record
       closest = record;
     }
   }
+  for (var i = 0; i < meshCount; i++){
+    var mesh = meshb[i];
+    for (var j = i32(mesh.start); j < i32(mesh.end); j++){
+      var tri = trianglesb[j];
+      var mesh_position = mesh.transform.xyz;
+      hit_triangle(r, mesh_position + tri.v0.xyz,mesh_position+  tri.v1.xyz,mesh_position+ tri.v2.xyz,&record, max);
+      if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
+        record.object_color = mesh.color;
+        record.object_material = mesh.material;
+        closest = record;
+      }
+
+    }
+  }
+  /*
+  for (var i = 0; i < planeCount; i++){
+    var plane = planesb[i];
+    var record = hit_record(RAY_TMAX, vec3f(0.0), vec3f(0.0), vec4f(0.0), vec4f(0.0), false, false);
+    hit_plane(r, plane.normal.xyz, plane.offset, &record, max);
+    if (record.hit_anything && (closest.hit_anything == false || length(closest.p - r.origin) > length(record.p - r.origin))){
+      record.object_color = plane.color;
+      record.object_material = plane.material;
+    }
+  }
+  */
+
 
   return closest;
 }
@@ -270,7 +308,7 @@ fn trace(r: ray, rng_state: ptr<function, u32>) -> vec3f
 
   for (var j = 0; j < maxbounces; j = j + 1)
   {
-    hitrec = check_ray_collision(r_, 100.);
+    hitrec = check_ray_collision(r_, 1000.);
     if (!hitrec.hit_anything){ light = accumulated_color *environment_color(r_.direction, backgroundcolor1, backgroundcolor2); break; }
     //determine bounce behaviour
     var smoothn = hitrec.object_material.x;

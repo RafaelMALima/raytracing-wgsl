@@ -99,4 +99,21 @@ class Mesh
     }
 }
 
+class Plane {
+    name = "Plane";
+    transform = [0.0, 0.0, 0.0, 0.0];
+    normal = [0.0, 0.0, 0.0, 0.0];
+    color = [0.0, 0.0, 0.0, 0.0];
+    material = [0.0, 0.0, 0.0, 0.0];
+    offset = 0.0;
+    constructor(transform, normal, color, material)
+    {
+        this.offset = offset;
+        this.normal = [normal[0], normal[1], normal[2], 0.0];
+        this.color = [color[0], color[1], color[2], 1.0];
+        this.material = material;
+        this.end = end;
+    }
+}
+
 export { Sphere, Quad, Box, Triangle, Mesh };
